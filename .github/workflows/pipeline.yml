@@ -1,0 +1,94 @@
+name: Lucid-Web-App-Pipeline
+
+on:
+  push:
+    branches: [ master ]
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_PROD_INFRA_DEPLOYMENT_ROLL: ${{ secrets.AWS_PROD_INFRA_DEPLOYMENT_ROLL }}
+  AWS_PROD_CODE_DEPLOYMENT_ROLL: ${{ secrets.AWS_PROD_CODE_DEPLOYMENT_ROLL }}
+  DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+
+jobs:
+
+  unit-test:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+      - name: Run Unit Testing
+        run: |
+          npm install
+          npm run test
+
+  build:
+    if: github.ref == 'refs/heads/master'
+    needs: [unit-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+      - name: Install Dependencies
+        run: npm install
+      - name: Create Build
+        run: npm run build
+  
+  deploy-infra:
+    if: github.ref == 'refs/heads/master'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure AWS Credentials and Assume Roll
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_PROD_DEPLOYMENT_ROLL }}
+          role-session-name: prod-deployment-infra
+          role-duration-seconds: 3600
+          role-skip-session-tagging: true
+      - name: Deploy Infra
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: Lucid-Web-App-Stack
+          template: /infra/s3-bucket.yaml
+          parameter-overrides: "RootDomainName=${{ env.DOMAIN_NAME }}"
+
+  deploy-code:
+    if: github.ref == 'refs/heads/master'
+    needs: [deploy-infra]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+      - name: Install Dependencies
+        run: npm install
+      - name: Create Build
+        run: npm run build
+      - name: Configure AWS Credentials and Assume Roll
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_PROD_DEPLOYMENT_ROLL }}
+          role-session-name: prod-deployment
+          role-duration-seconds: 3600
+          role-skip-session-tagging: true
+      - name: Deploy to S3 Bucket
+        run: aws s3 sync ./build s3://${{ env.DOMAIN_NAME }} --delete
