@@ -55,7 +55,7 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ env.AWS_PROD_DEPLOYMENT_ROLL }}
+          role-to-assume: ${{ env.AWS_PROD_INFRA_DEPLOYMENT_ROLL }}
           role-session-name: prod-deployment-infra
           role-duration-seconds: 3600
           role-skip-session-tagging: true
@@ -63,7 +63,7 @@ jobs:
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
           name: Lucid-Web-App-Stack
-          template: /infra/s3-bucket.yaml
+          template: ./infra/s3-bucket.yaml
           parameter-overrides: "RootDomainName=${{ env.DOMAIN_NAME }}"
 
   deploy-code:
