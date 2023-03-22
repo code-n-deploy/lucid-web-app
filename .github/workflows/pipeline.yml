@@ -60,11 +60,7 @@ jobs:
           role-duration-seconds: 3600
           role-skip-session-tagging: true
       - name: Deploy Infra
-        uses: aws-actions/aws-cloudformation-github-deploy@v1
-        with:
-          name: Lucid-Web-App-Stack
-          template: ./infra/s3-bucket.yaml
-          parameter-overrides: "RootDomainName=${{ env.DOMAIN_NAME }}"
+        run: aws cloudformation deploy --template-file ./infra/s3-bucket.yaml --stack-name Lucid-Web-App-Stack --parameter-overrides RootDomainName=${{ env.DOMAIN_NAME }}
 
   deploy-code:
     if: github.ref == 'refs/heads/master'
