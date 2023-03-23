@@ -2,6 +2,10 @@ Parameters:
   RootDomainName:
     Description: Domain name for your website (example.com)
     Type: String
+  SubDomainName:
+    Description: Sub-Domain name for your website (subdomain.example.com)
+    Type: String
+
 Mappings:
   RegionMap:
     us-east-1:
@@ -12,11 +16,12 @@ Resources:
   WWWBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref RootDomainName
+      BucketName: !Ref SubDomainName
       AccessControl: PublicRead
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: 404.html
+
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -27,8 +32,37 @@ Resources:
           Effect: Allow
           Principal: '*'
           Action: s3:GetObject
-          Resource: !Join ['', ['arn:aws:s3:::', !Ref 'WWWBucket', /*]]
-  myDNS:
+          Resource: !Join ['', ['arn:aws:s3:::', !Ref 'WWWBucket', /*]] 
+  
+  HostedZoneForDomain:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref SubDomainName
+
+  RecordSetForSubBucket:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub 
+        - ${Domain}.
+        - Domain: !Ref SubDomainName
+      Comment: Zone apex alias.
+      RecordSets:
+      - 
+        Name: !Ref SubDomainName
+        Type: A
+        AliasTarget:
+          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
+          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
+      -
+        Name: !Sub
+            - www.${Domain}
+            - Domain: !Ref SubDomainName
+        Type: CNAME
+        TTL: 900
+        ResourceRecords:
+        - !GetAtt WWWBucket.WebsiteURL
+
+  RecordSetForRootDomain:
     Type: AWS::Route53::RecordSetGroup
     Properties:
       HostedZoneName: !Sub 
@@ -37,19 +71,11 @@ Resources:
       Comment: Zone apex alias.
       RecordSets:
       - 
-        Name: !Ref RootDomainName
-        Type: A
-        AliasTarget:
-          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
-          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
-      -
-        Name: !Sub
-            - www.${Domain}
-            - Domain: !Ref RootDomainName
-        Type: CNAME
+        Name: !Ref SubDomainName
+        Type: NS
         TTL: 900
-        ResourceRecords:
-        - !GetAtt WWWBucket.DomainName
+        ResourceRecords: !GetAtt HostedZoneForDomain.NameServers
+
 Outputs:
   WebsiteURL:
     Value: !GetAtt WWWBucket.WebsiteURL

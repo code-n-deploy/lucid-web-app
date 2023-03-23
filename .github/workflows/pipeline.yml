@@ -56,7 +56,7 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Deploy Infra
-        run: aws cloudformation deploy --template-file ./infra/s3-bucket.yaml --stack-name Lucid-Web-App-Stack --parameter-overrides RootDomainName=${{ env.DOMAIN_NAME }}
+        run: aws cloudformation deploy --template-file ./infra/s3-bucket.yaml --stack-name Lucid-Web-App-Stack --parameter-overrides RootDomainName=${{ env.DOMAIN_NAME }} SubDomainName=${{ env.SUB_DOMAIN_NAME }}
 
   deploy-code:
     if: github.ref == 'refs/heads/master'
