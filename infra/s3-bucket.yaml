@@ -34,7 +34,7 @@ Resources:
           Action: s3:GetObject
           Resource: !Join ['', ['arn:aws:s3:::', !Ref 'WWWBucket', /*]] 
   
-  HostedZoneForDomain:
+  HostedZoneForSubDomain:
     Type: AWS::Route53::HostedZone
     Properties:
       Name: !Ref SubDomainName
@@ -74,7 +74,7 @@ Resources:
         Name: !Ref SubDomainName
         Type: NS
         TTL: 900
-        ResourceRecords: !GetAtt HostedZoneForDomain.NameServers
+        ResourceRecords: !GetAtt HostedZoneForSubDomain.NameServers
 
 Outputs:
   WebsiteURL:
